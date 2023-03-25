@@ -28,13 +28,15 @@ laundry_groups = {"white": [], "colored": [], "black": []}
 
 
 def start(update: Update, context: CallbackContext):
-    menu_keyboard = [
-        [KeyboardButton("/addlaundry")],
-        [KeyboardButton("/matchlaundry")],
-        # Add more buttons for other available commands
-    ]
-    reply_markup = ReplyKeyboardMarkup(menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
-    update.message.reply_text("Welcome to the Laundry Organizer! Choose an option from the menu:", reply_markup=reply_markup)
+    menu_text = (
+        "Welcome to the Laundry Organizer! Here are the available commands:\n\n"
+        "/addlaundry - Add a laundry item\n"
+        "/matchlaundry - Find laundry matches\n"
+        "/showlaundry - Show your added laundry\n"
+        "/showlaundry all - Show all added laundry by everyone\n"
+        # Add more lines for other available commands
+    )
+    update.message.reply_text(menu_text)
 
 
 def add_laundry(update: Update, context: CallbackContext):
@@ -73,20 +75,33 @@ def add_color(update: Update, context: CallbackContext):
 
 def show_laundry(update: Update, context: CallbackContext):
     user_id = str(update.message.from_user.id)
+    show_all = 'all' in context.args
 
     # Load the current laundry data.
     laundry_data = load_data()
 
-    # Check if the user has any laundry data.
-    if user_id not in laundry_data:
-        update.message.reply_text("You haven't added any laundry items yet.")
-        return
+    if show_all:
+        if not laundry_data:
+            update.message.reply_text("No laundry items have been added by any user.")
+            return
 
-    # Create a message with the user's laundry data.
-    user_laundry = laundry_data[user_id]
-    laundry_message = "Here's your added laundry:\n"
-    for color, count in user_laundry.items():
-        laundry_message += f"{color.capitalize()}: {count}\n"
+        laundry_message = "Here's the laundry added by everyone:\n\n"
+        for user, user_laundry in laundry_data.items():
+            laundry_message += f"User {user}:\n"
+            for color, count in user_laundry.items():
+                laundry_message += f"{color.capitalize()}: {count}\n"
+            laundry_message += "\n"
+    else:
+        # Check if the user has any laundry data.
+        if user_id not in laundry_data:
+            update.message.reply_text("You haven't added any laundry items yet.")
+            return
+
+        # Create a message with the user's laundry data.
+        user_laundry = laundry_data[user_id]
+        laundry_message = "Here's your added laundry:\n"
+        for color, count in user_laundry.items():
+            laundry_message += f"{color.capitalize()}: {count}\n"
 
     update.message.reply_text(laundry_message)
 
