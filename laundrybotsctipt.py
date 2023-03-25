@@ -8,10 +8,11 @@ Original file is located at
 """
 # Before running script be sure you install deps
 # pip install python-telegram-bot
+import json
 
 import logging
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler,Filters, CallbackQueryHandler, MessageHandler, CallbackContext
+from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
+from telegram.ext import Updater, CommandHandler, Filters, CallbackQueryHandler, MessageHandler, CallbackContext
 from telegram.ext import JobQueue
 
 # from telegram.ext import Filters
@@ -23,35 +24,93 @@ TOKEN = "6135601546:AAECHTEz5rso2liRcocwAot0rXClNVs6xKk"
 # Stores users' laundry info: {user_id: {"white": 0, "light": 0, "dark": 0, "black": 0}}
 users_laundry = {}
 # Stores users in laundry groups: {color: [user_ids]}
-laundry_groups = {"white": [], "light": [], "dark": [], "black": []}
+laundry_groups = {"white": [], "colored": [], "black": []}
+
 
 def start(update: Update, context: CallbackContext):
-    update.message.reply_text("Welcome to the Laundry Organizer! Use /addlaundry to add your laundry items.")
+    menu_keyboard = [
+        [KeyboardButton("/addlaundry")],
+        [KeyboardButton("/matchlaundry")],
+        # Add more buttons for other available commands
+    ]
+    reply_markup = ReplyKeyboardMarkup(menu_keyboard, resize_keyboard=True, one_time_keyboard=True)
+    update.message.reply_text("Welcome to the Laundry Organizer! Choose an option from the menu:", reply_markup=reply_markup)
+
 
 def add_laundry(update: Update, context: CallbackContext):
     user_id = update.message.from_user.id
+    if user_id not in users_laundry:
+        users_laundry[user_id] = {"white": 0, "colored": 0, "black": 0}
+
     color_keyboard = [
-        [InlineKeyboardButton("White", callback_data=f"white_{user_id}")],
-        [InlineKeyboardButton("Colored", callback_data=f"colored_{user_id}")],
-        [InlineKeyboardButton("Black", callback_data=f"black_{user_id}")]
+        [KeyboardButton("White", callback_data=f"white_{user_id}")],
+        [KeyboardButton("Colored", callback_data=f"colored_{user_id}")],
+        [KeyboardButton("Black", callback_data=f"black_{user_id}")]
     ]
     reply_markup = ReplyKeyboardMarkup(color_keyboard, resize_keyboard=True)
-    update.message.reply_text("Choose the color of the laundry item you want to add:", reply_markup=reply_markup)
+    update.message.reply_text(
+        "Choose the color of the laundry item you want to add:", reply_markup=reply_markup)
+
 
 def add_color(update: Update, context: CallbackContext):
     color = update.message.text.lower()
-    user_id = update.message.from_user.id
-    color = query.data.split("_")[1]
-    users_laundry[user_id][color] += 1
-    
-    if user_id not in laundry_groups[color]:
-        laundry_groups[color].append(user_id)
-    update.message.reply_text(f"Added 1 {color} item to your laundry list. Use /addlaundry to add more items.")
+    user_id = str(update.message.from_user.id)
+
+    # Load the current laundry data.
+    laundry_data = load_data()
+
+    # If the user is not in the laundry_data, create an entry for them.
+    if user_id not in laundry_data:
+        laundry_data[user_id] = {'white': 0, 'colored': 0, 'black': 0}
+
+    # Add the laundry item to the user's data.
+    laundry_data[user_id][color] += 1
+
+    # Save the updated laundry data.
+    save_data(laundry_data)
+
+    update.message.reply_text(f"Added 1 {color} item to your laundry list. Use /addlaundry to add more items.", reply_markup=ReplyKeyboardRemove())
+
+def show_laundry(update: Update, context: CallbackContext):
+    user_id = str(update.message.from_user.id)
+
+    # Load the current laundry data.
+    laundry_data = load_data()
+
+    # Check if the user has any laundry data.
+    if user_id not in laundry_data:
+        update.message.reply_text("You haven't added any laundry items yet.")
+        return
+
+    # Create a message with the user's laundry data.
+    user_laundry = laundry_data[user_id]
+    laundry_message = "Here's your added laundry:\n"
+    for color, count in user_laundry.items():
+        laundry_message += f"{color.capitalize()}: {count}\n"
+
+    update.message.reply_text(laundry_message)
+
+
+
+def load_data(file_name="laundry_data.json"):
+    try:
+        with open(file_name, "r") as file:
+            data = json.load(file)
+    except (FileNotFoundError, json.JSONDecodeError):
+        data = {}
+    return data
+
+def save_data(data, file_name="laundry_data.json"):
+    with open(file_name, "w") as file:
+        json.dump(data, file)
+
+
 
 def match_laundry(update: Update, context: CallbackContext):
     user_id = update.message.from_user.id
     if user_id not in users_laundry:
-        update.message.reply_text("You haven't added any laundry items yet. Use /addlaundry to add items.")
+        update.message.reply_text(
+            "You haven't added any laundry items yet. Use /addlaundry to add items.")
         return
 
     user_laundry = users_laundry[user_id]
@@ -62,11 +121,14 @@ def match_laundry(update: Update, context: CallbackContext):
     if matched_colors:
         response = "You have matched laundry groups for the following colors:\n"
         for color in matched_colors:
-            group_members = [str(user) for user in laundry_groups[color] if user != user_id]
+            group_members = [str(user)
+                             for user in laundry_groups[color] if user != user_id]
             response += f"{color.capitalize()}: {', '.join(group_members)}\n"
         update.message.reply_text(response)
     else:
-        update.message.reply_text("No matches found for your laundry. Add more items with /addlaundry or wait for others to join.")
+        update.message.reply_text(
+            "No matches found for your laundry. Add more items with /addlaundry or wait for others to join.")
+
 
 def main():
     updater = Updater(TOKEN, use_context=True)
@@ -75,10 +137,13 @@ def main():
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CommandHandler("addlaundry", add_laundry))
     dispatcher.add_handler(CommandHandler("matchlaundry", match_laundry))
-    dispatcher.add_handler(MessageHandler(Filters.text(["White", "Colored", "Black"]), add_color))
+    dispatcher.add_handler(CommandHandler("showlaundry", show_laundry))
+    dispatcher.add_handler(MessageHandler(
+        Filters.text(["White", "Colored", "Black"]), add_color))
 
     updater.start_polling()
     updater.idle()
+
 
 if __name__ == '__main__':
     main()
