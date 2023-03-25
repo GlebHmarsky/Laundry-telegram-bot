@@ -51,6 +51,7 @@ def add_color(update: Update, context: CallbackContext):
 
     update.message.reply_text(f"Added 1 {color} item to your laundry list. Use /addlaundry to add more items.", reply_markup=ReplyKeyboardRemove())
 
+
 def show_laundry(update: Update, context: CallbackContext):
     user_id = str(update.message.from_user.id)
     show_all = 'all' in context.args
@@ -82,8 +83,6 @@ def show_laundry(update: Update, context: CallbackContext):
             laundry_message += f"{color.capitalize()}: {count}\n"
 
     update.message.reply_text(laundry_message)
-
-
 
 
 def match_laundry(update: Update, context: CallbackContext):
