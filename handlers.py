@@ -2,7 +2,7 @@ from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardR
 from telegram.ext import CallbackContext
 
 from storage import load_data, save_data
-from data import laundry_groups, users_laundry
+from data import users_laundry
 
 
 def start(update: Update, context: CallbackContext):
@@ -92,30 +92,27 @@ def match_laundry(update: Update, context: CallbackContext):
     users_laundry = load_data()
     main_user_id = str(update.message.from_user.id)
 
-    debug_message = f"ID({main_user_id}) Users in data:\n"
-    for user_id, tt in users_laundry.items():
-        debug_message += f"User {get_user_name(user_id, context)} (id: {user_id}) IS IT IN???({main_user_id in users_laundry}/({user_id in users_laundry})/({main_user_id == user_id})):\n"
-        debug_message += f"{main_user_id}\n{user_id}\n\n"
-
-    update.message.reply_text(debug_message)
-
     if main_user_id not in users_laundry:
         update.message.reply_text(
             "You haven't added any laundry items yet. Use /addlaundry to add items.")
         return
 
     user_laundry = users_laundry[main_user_id]
+    other_users_laundry = {key: value for key,
+                           value in users_laundry.items() if key != main_user_id}
     matched_colors = []
-    for color, count in user_laundry.items():
-        if count > 0 and len(laundry_groups[color]) > 1:
-            matched_colors.append(color)
+    for main_user_color, main_user_count in user_laundry.items():
+        for someone_user_id in other_users_laundry:
+            someone_laundry = other_users_laundry[someone_user_id]
+            if main_user_count > 0:
+                if someone_laundry[main_user_color] > 0:
+                    matched_colors.append(
+                        f"Color: {main_user_color} User:{someone_user_id}")
     if matched_colors:
         response = "You have matched laundry groups for the following colors:\n"
         for color in matched_colors:
-            group_members = [str(user)
-                             for user in laundry_groups[color] if user != main_user_id]
-            response += f"{color.capitalize()}: {', '.join(group_members)}\n"
-        update.message.reply_text(response)
+            response += f"{color}\n"
+        update.message.reply_text(response) 
     else:
         update.message.reply_text(
             "No matches found for your laundry. Add more items with /addlaundry or wait for others to join.")
