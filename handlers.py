@@ -90,14 +90,21 @@ def show_laundry(update: Update, context: CallbackContext):
 
 def match_laundry(update: Update, context: CallbackContext):
     users_laundry = load_data()
-    
-    user_id = update.message.from_user.id
-    if user_id not in users_laundry:
+    main_user_id = str(update.message.from_user.id)
+
+    debug_message = f"ID({main_user_id}) Users in data:\n"
+    for user_id, tt in users_laundry.items():
+        debug_message += f"User {get_user_name(user_id, context)} (id: {user_id}) IS IT IN???({main_user_id in users_laundry}/({user_id in users_laundry})/({main_user_id == user_id})):\n"
+        debug_message += f"{main_user_id}\n{user_id}\n\n"
+
+    update.message.reply_text(debug_message)
+
+    if main_user_id not in users_laundry:
         update.message.reply_text(
             "You haven't added any laundry items yet. Use /addlaundry to add items.")
         return
 
-    user_laundry = users_laundry[user_id]
+    user_laundry = users_laundry[main_user_id]
     matched_colors = []
     for color, count in user_laundry.items():
         if count > 0 and len(laundry_groups[color]) > 1:
@@ -106,7 +113,7 @@ def match_laundry(update: Update, context: CallbackContext):
         response = "You have matched laundry groups for the following colors:\n"
         for color in matched_colors:
             group_members = [str(user)
-                             for user in laundry_groups[color] if user != user_id]
+                             for user in laundry_groups[color] if user != main_user_id]
             response += f"{color.capitalize()}: {', '.join(group_members)}\n"
         update.message.reply_text(response)
     else:
