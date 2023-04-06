@@ -19,6 +19,7 @@ def start(update: Update, context: CallbackContext):
 
 def add_laundry(update: Update, context: CallbackContext):
     user_id = update.message.from_user.id
+    # If user not in list
     if user_id not in users_laundry:
         users_laundry[user_id] = {"white": 0, "colored": 0, "black": 0}
 
@@ -101,21 +102,70 @@ def match_laundry(update: Update, context: CallbackContext):
     other_users_laundry = {key: value for key,
                            value in users_laundry.items() if key != main_user_id}
     matched_colors = []
+
+    laundry_groups = {}  # "white": [], "colored": [], "black": []
+
     for main_user_color, main_user_count in user_laundry.items():
+        add_id_to_array(laundry_groups, main_user_color, main_user_id)
         for someone_user_id in other_users_laundry:
             someone_laundry = other_users_laundry[someone_user_id]
             if main_user_count > 0:
                 if someone_laundry[main_user_color] > 0:
+                    add_id_to_array(
+                        laundry_groups, main_user_color, someone_user_id)
                     matched_colors.append(
-                        f"Color: {main_user_color} User:{someone_user_id}")
+                        f"Color: {main_user_color} User: {someone_user_id}")
+
     if matched_colors:
         response = "You have matched laundry groups for the following colors:\n"
         for color in matched_colors:
             response += f"{color}\n"
-        update.message.reply_text(response) 
+        update.message.reply_text(response)
+
+        response = "Users by color:"
+        for color in laundry_groups:
+            users_group = laundry_groups[color]
+            response += f"\n\nColor: {color} ->"
+            for user_id in users_group:
+                user_chat = context.bot.get_chat(user_id)
+                response += f"\n@{user_chat.username}"
+
+        update.message.reply_text(response)
+
+    for color, users_group in laundry_groups.items():
+        for user_id in users_group:
+            send_other_participants(
+                color, users_group, user_id, context=context)
+
     else:
         update.message.reply_text(
             "No matches found for your laundry. Add more items with /addlaundry or wait for others to join.")
+
+
+def send_other_participants(color, users_group, send_user_id, context: CallbackContext):
+    text_message = "Test, don't worry - be happy ^_^ \n"
+
+    text_message += f"\nThere is a match on color: \"{color}\" with ->"
+    for user_id in users_group:
+        user_chat = context.bot.get_chat(user_id)
+        text_message += "\n"
+        if user_chat.first_name != "":
+            text_message += f"{user_chat.first_name} "
+        if user_chat.last_name != "":
+            text_message += f"{user_chat.last_name} "
+
+        text_message += f"(@{user_chat.username})"
+
+    context.bot.send_message(send_user_id, text_message)
+
+
+def add_id_to_array(dictionary, key, id_value):
+    if key not in dictionary:
+        # Initialize the key with a list containing the ID
+        dictionary[key] = [id_value]
+    else:
+        # Add the ID to the existing list
+        dictionary[key].append(id_value)
 
 
 def get_user_name(user_id, context):
