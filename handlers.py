@@ -1,4 +1,4 @@
-from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import CallbackContext
 
 from storage import load_data, save_data
@@ -17,7 +17,7 @@ def start(update: Update, context: CallbackContext):
     update.message.reply_text(menu_text)
 
 
-# Okey, i need to extend fuctionlity of adding new color, i need to do next:
+# Okay, i need to extend functionality of adding new color, i need to do next:
 # When user select color after that
 
 def add_laundry(update: Update, context: CallbackContext):
@@ -26,14 +26,55 @@ def add_laundry(update: Update, context: CallbackContext):
     if user_id not in users_laundry:
         users_laundry[user_id] = {"white": 0, "colored": 0, "black": 0}
 
-    color_keyboard = [
-        [KeyboardButton("White", callback_data=f"white_{user_id}")],
-        [KeyboardButton("Colored", callback_data=f"colored_{user_id}")],
-        [KeyboardButton("Black", callback_data=f"black_{user_id}")]
+    keyboard = [
+        [
+            InlineKeyboardButton("White", callback_data="white"),
+            InlineKeyboardButton("Colored", callback_data="colored"),
+            InlineKeyboardButton("Black", callback_data="black")
+        ]
     ]
-    reply_markup = ReplyKeyboardMarkup(color_keyboard, resize_keyboard=True)
+    reply_markup = InlineKeyboardMarkup(keyboard)
     update.message.reply_text(
-        "Choose the color of the laundry item you want to add:", reply_markup=reply_markup)
+        "Choose a color for your laundry:", reply_markup=reply_markup)
+
+
+def button_handler(update: Update, context: CallbackContext):
+    query = update.callback_query
+    query.answer()
+
+    user_id = str(query.from_user.id)
+    users_laundry = load_data()
+
+    color_data = ["white", "colored", "black"]
+
+    if query.data in color_data:
+        context.user_data['selected_color'] = query.data
+
+        keyboard = [
+            [
+                InlineKeyboardButton("1/5", callback_data="quantity_1"),
+                InlineKeyboardButton("2/5", callback_data="quantity_2"),
+                InlineKeyboardButton("3/5", callback_data="quantity_3"),
+                InlineKeyboardButton("4/5", callback_data="quantity_4"),
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        query.edit_message_text(
+            "How many laundry items do you want to add?", reply_markup=reply_markup)
+    elif "quantity_" in query.data:
+        quantity = int(query.data.split("_")[1])
+
+        if user_id not in users_laundry:
+            users_laundry[user_id] = {}
+
+        color = context.user_data['selected_color']
+        if color not in users_laundry[user_id]:
+            users_laundry[user_id][color] = quantity
+        else:
+            users_laundry[user_id][color] += quantity
+
+        save_data(users_laundry)
+        query.edit_message_text(f"Added {quantity} {color} laundry items.")
 
 
 def add_color(update: Update, context: CallbackContext):
@@ -135,7 +176,7 @@ def match_laundry(update: Update, context: CallbackContext):
 
         update.message.reply_text(response)
 
-    # Sending messages    
+    # Sending messages
     # for color, users_group in laundry_groups.items():
     #     for user_id in users_group:
     #         send_other_participants(
