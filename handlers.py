@@ -17,6 +17,9 @@ def start(update: Update, context: CallbackContext):
     update.message.reply_text(menu_text)
 
 
+# Okey, i need to extend fuctionlity of adding new color, i need to do next:
+# When user select color after that
+
 def add_laundry(update: Update, context: CallbackContext):
     user_id = update.message.from_user.id
     # If user not in list
@@ -117,12 +120,12 @@ def match_laundry(update: Update, context: CallbackContext):
                         f"Color: {main_user_color} User: {someone_user_id}")
 
     if matched_colors:
-        response = "You have matched laundry groups for the following colors:\n"
-        for color in matched_colors:
-            response += f"{color}\n"
-        update.message.reply_text(response)
+        response = "You have matched laundry groups for the following colors:"
+        # for color in matched_colors:
+        #     response += f"{color}\n"
+        # update.message.reply_text(response)
 
-        response = "Users by color:"
+        # response = "Users by color:"
         for color in laundry_groups:
             users_group = laundry_groups[color]
             response += f"\n\nColor: {color} ->"
@@ -132,10 +135,11 @@ def match_laundry(update: Update, context: CallbackContext):
 
         update.message.reply_text(response)
 
-    for color, users_group in laundry_groups.items():
-        for user_id in users_group:
-            send_other_participants(
-                color, users_group, user_id, context=context)
+    # Sending messages    
+    # for color, users_group in laundry_groups.items():
+    #     for user_id in users_group:
+    #         send_other_participants(
+    #             color, users_group, user_id, context=context)
 
     else:
         update.message.reply_text(
