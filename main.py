@@ -19,9 +19,6 @@ dispatcher.add_handler(CommandHandler("showlaundry", show_laundry))
 dispatcher.add_handler(CommandHandler("editlaundry", edit_laundry))
 dispatcher.add_handler(CallbackQueryHandler(color_selected, pattern="^match:"))
 dispatcher.add_handler(CallbackQueryHandler(button_handler))
-# dispatcher.add_handler(MessageHandler(
-#     Filters.text(["White", "Colored", "Black"]), add_color))
-
 
 updater.start_polling()
 updater.idle()

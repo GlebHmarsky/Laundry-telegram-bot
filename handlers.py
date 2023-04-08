@@ -201,9 +201,9 @@ def build_color_buttons(laundry_groups):
 
 def send_color_selection_message(update, context, laundry_groups):
     keyboard = build_color_buttons(laundry_groups)
-    reply_markup = InlineKeyboardMarkup.from_column(keyboard)
+    reply_markup = InlineKeyboardMarkup.from_row(keyboard)
     update.message.reply_text(
-        "Select a color to wash first:",
+        "Select a color you want wash:",
         reply_markup=reply_markup
     )
 
@@ -214,7 +214,32 @@ def color_selected(update: Update, context: CallbackContext):
     selected_color = query.data.split(':')[1]
     query.answer()
     query.edit_message_text(f"Selected color: {selected_color}")
+    
+    
 
+
+"""
+Крч, дело вот такое. 
+Мы имеем пользователей которые сгруппированы по цветам
+Однако! чтобы в том же match_laundry сгруппировать людей нам нужен ЦВЕТ 
+по которому будем группировать
+
+цвет мы узнаем только после того как ответит юзер
+в color_selected
+следовательно группировка на сохранение группы должна быть где-то там, однако
+мы можем потерять информацию о той группе что хотели сгруппировать изначально(может измениться)
+Это плохо! 
+
+Надо как-то сохранить группировки по цветам для текущего юзера!
+ОДнако! я переживаю что тут есть асинхронщина которая даст о себе знать в неприятный момент времени
+Я имею ввиду что если мы заведём глобальную переменную куда положим юзеров сгруппированых, то в промежуток времени
+пока основной юзер который матчит будет отвечать на вопросик о том хочет ли он мыться
+может прийти второй кто-то и сделать тоже самои перезаписать переменную и будет плохо. 
+
+Идея - как-то надо сохранить для текущего основного юзера его мачт список. 
+После доставать оттуда этот мачт и уже парсить так как того требует идея.
+
+"""
 
 def match_laundry(update: Update, context: CallbackContext):
     users_laundry = load_data()
