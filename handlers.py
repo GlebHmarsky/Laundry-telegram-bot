@@ -190,6 +190,32 @@ def show_laundry(update: Update, context: CallbackContext):
     update.message.reply_text(laundry_message)
 
 
+def build_color_buttons(laundry_groups):
+    buttons = []
+    for color in laundry_groups:
+        button = InlineKeyboardButton(
+            text=color, callback_data=f"match:{color}")
+        buttons.append(button)
+    return buttons
+
+
+def send_color_selection_message(update, context, laundry_groups):
+    keyboard = build_color_buttons(laundry_groups)
+    reply_markup = InlineKeyboardMarkup.from_column(keyboard)
+    update.message.reply_text(
+        "Select a color to wash first:",
+        reply_markup=reply_markup
+    )
+
+
+def color_selected(update: Update, context: CallbackContext):
+    print("Color selected function called")
+    query = update.callback_query
+    selected_color = query.data.split(':')[1]
+    query.answer()
+    query.edit_message_text(f"Selected color: {selected_color}")
+
+
 def match_laundry(update: Update, context: CallbackContext):
     users_laundry = load_data()
     main_user_id = str(update.message.from_user.id)
@@ -207,7 +233,6 @@ def match_laundry(update: Update, context: CallbackContext):
     laundry_groups = {}  # "white": [], "colored": [], "black": []
 
     for main_user_color, main_user_count in user_laundry.items():
-        add_id_to_array(laundry_groups, main_user_color, main_user_id)
         for someone_user_id in other_users_laundry:
             someone_laundry = other_users_laundry[someone_user_id]
             if main_user_count > 0:
@@ -216,6 +241,8 @@ def match_laundry(update: Update, context: CallbackContext):
                         laundry_groups, main_user_color, someone_user_id)
                     matched_colors.append(
                         f"Color: {main_user_color} User: {someone_user_id}")
+        if main_user_color in laundry_groups:
+            add_id_to_array(laundry_groups, main_user_color, main_user_id)
 
     if matched_colors:
         response = "You have matched laundry groups for the following colors:"
@@ -232,7 +259,7 @@ def match_laundry(update: Update, context: CallbackContext):
                 response += f"\n@{user_chat.username}"
 
         update.message.reply_text(response)
-
+        send_color_selection_message(update, context, laundry_groups)
     # Sending messages
     # for color, users_group in laundry_groups.items():
     #     for user_id in users_group:
