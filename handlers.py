@@ -12,6 +12,7 @@ def start(update: Update, context: CallbackContext):
         "/matchlaundry - Find laundry matches\n"
         "/showlaundry - Show your added laundry\n"
         "/showlaundry all - Show all added laundry by everyone\n"
+        "/editlaundry - Allows edit your laundry\n"
         # Add more lines for other available commands
     )
     update.message.reply_text(menu_text)
@@ -61,7 +62,7 @@ def button_handler(update: Update, context: CallbackContext):
         reply_markup = InlineKeyboardMarkup(keyboard)
         query.edit_message_text(
             "How many laundry items do you want to add?", reply_markup=reply_markup)
-    elif "quantity_" in query.data:
+    elif query.data.startswith("quantity_"):
         quantity = int(query.data.split("_")[1])
 
         if user_id not in users_laundry:
@@ -75,6 +76,61 @@ def button_handler(update: Update, context: CallbackContext):
 
         save_data(users_laundry)
         query.edit_message_text(f"Added {quantity} {color} laundry items.")
+    elif query.data.startswith("edit_"):
+        color = query.data[5:]
+        context.user_data['selected_color'] = color
+
+        keyboard = [
+            [
+                InlineKeyboardButton("1/5", callback_data="new_quantity_1"),
+                InlineKeyboardButton("2/5", callback_data="new_quantity_2"),
+                InlineKeyboardButton("3/5", callback_data="new_quantity_3"),
+                InlineKeyboardButton("4/5", callback_data="new_quantity_4"),
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        query.edit_message_text(
+            f"Enter the new quantity for {color.capitalize()} laundry items:", reply_markup=reply_markup)
+    elif query.data.startswith("new_quantity_"):
+        new_quantity = int(query.data.split("_")[2])
+
+        user_id = str(query.from_user.id)
+        users_laundry = load_data()
+        user_laundry = users_laundry[user_id]
+
+        color = context.user_data['selected_color']
+        user_laundry[color] = new_quantity
+        save_data(users_laundry)
+
+        query.edit_message_text(
+            f"Updated {color.capitalize()} laundry items to {new_quantity}.")
+
+
+def edit_laundry(update: Update, context: CallbackContext):
+    user_id = str(update.message.from_user.id)
+    users_laundry = load_data()
+
+    if user_id not in users_laundry:
+        update.message.reply_text(
+            "You haven't added any laundry items yet. Use /addlaundry to add items.")
+        return
+
+    user_laundry = users_laundry[user_id]
+    laundry_text = "Your current laundry items:\n"
+    for color, count in user_laundry.items():
+        laundry_text += f"{color.capitalize()}: {count}\n"
+    update.message.reply_text(laundry_text)
+
+    keyboard = [
+        [
+            InlineKeyboardButton("White", callback_data="edit_white"),
+            InlineKeyboardButton("Colored", callback_data="edit_colored"),
+            InlineKeyboardButton("Black", callback_data="edit_black"),
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    update.message.reply_text(
+        "Select the color you want to edit:", reply_markup=reply_markup)
 
 
 def add_color(update: Update, context: CallbackContext):
