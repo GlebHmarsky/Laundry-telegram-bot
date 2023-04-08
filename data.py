@@ -28,3 +28,5 @@ ParticipantGroups = List[Group]
 groups_washing: ParticipantGroups = []
 
 users_laundry = {}
+
+groups_by_main_user = {}

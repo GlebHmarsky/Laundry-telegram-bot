@@ -2,7 +2,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKe
 from telegram.ext import CallbackContext
 
 from storage import load_data, save_data
-from data import users_laundry
+from data import users_laundry, groups_by_main_user
 
 
 def start(update: Update, context: CallbackContext):
@@ -209,13 +209,17 @@ def send_color_selection_message(update, context, laundry_groups):
 
 
 def color_selected(update: Update, context: CallbackContext):
-    print("Color selected function called")
     query = update.callback_query
+    main_user_id = str(query.from_user.id)
     selected_color = query.data.split(':')[1]
     query.answer()
     query.edit_message_text(f"Selected color: {selected_color}")
-    
-    
+
+    laundry_group = groups_by_main_user[main_user_id][selected_color]
+
+    for user_id in laundry_group:
+        send_other_participants(
+            selected_color, laundry_group, user_id, context=context)
 
 
 """
@@ -238,8 +242,9 @@ def color_selected(update: Update, context: CallbackContext):
 
 Идея - как-то надо сохранить для текущего основного юзера его мачт список. 
 После доставать оттуда этот мачт и уже парсить так как того требует идея.
-
+гений мысли и отец русской демократии
 """
+
 
 def match_laundry(update: Update, context: CallbackContext):
     users_laundry = load_data()
@@ -285,6 +290,8 @@ def match_laundry(update: Update, context: CallbackContext):
 
         update.message.reply_text(response)
         send_color_selection_message(update, context, laundry_groups)
+
+        groups_by_main_user[main_user_id] = laundry_groups
     # Sending messages
     # for color, users_group in laundry_groups.items():
     #     for user_id in users_group:
