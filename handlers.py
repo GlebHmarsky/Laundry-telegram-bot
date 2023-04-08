@@ -82,6 +82,7 @@ def button_handler(update: Update, context: CallbackContext):
 
         keyboard = [
             [
+                InlineKeyboardButton("0", callback_data="new_quantity_0"),
                 InlineKeyboardButton("1/5", callback_data="new_quantity_1"),
                 InlineKeyboardButton("2/5", callback_data="new_quantity_2"),
                 InlineKeyboardButton("3/5", callback_data="new_quantity_3"),
