@@ -19,9 +19,6 @@ def start(update: Update, context: CallbackContext):
     update.message.reply_text(menu_text)
 
 
-# Okay, i need to extend functionality of adding new color, i need to do next:
-# When user select color after that
-
 def add_laundry(update: Update, context: CallbackContext):
     user_id = update.message.from_user.id
     # If user not in list
@@ -304,15 +301,19 @@ def handle_yes_no_button(update: Update, context: CallbackContext):
             f"there is {user_id} ({specific_participant}) goes for undefined")
     # Update the message text for other users
     text_message = create_text_to_participants(
-        group["color"], group["participants"], context)
+        selected_user_id, group["color"], group["participants"], context)
 
     for sent_message in group["sent_messages"]:
         chat_id = sent_message["chat_id"]
         message_id = sent_message["message_id"]
+        participant = find_user_by_id(group["participants"], chat_id)
+
+        reply_markup = create_yes_no_keyboard(
+            selected_user_id)if participant["ready"] == None else None
 
         # Update the message in each chat
         context.bot.edit_message_text(chat_id=chat_id, message_id=message_id,
-                                      text=text_message, reply_markup=create_yes_no_keyboard(selected_user_id))
+                                      text=text_message, reply_markup=reply_markup, parse_mode="HTML")
 
     query.answer()
 
@@ -343,14 +344,13 @@ def find_user_by_id(list, user_to_find):
     return None
 
 
-def create_text_to_participants(color, participants: List[Participant], context: CallbackContext):
+def create_text_to_participants(main_user_id, color, participants: List[Participant], context: CallbackContext):
     emoji_check = "\U00002705"
     emoji_cross = "\U0000274C"
     emoji_thinks = "\U0001F4AD"
 
-    text_message = "Test, don't worry - be happy ^_^ \n"
+    text_message = f"{get_user_name(main_user_id, context=context)} want to wash <u>'{color}'</u> with you and:\n"
 
-    text_message += f"\nThere is a match on color: \"{color}\" with ->"
     for participant in participants:
         user_chat = context.bot.get_chat(participant["user_id"])
         text_message += "\n"
@@ -364,7 +364,7 @@ def create_text_to_participants(color, participants: List[Participant], context:
 
         if user_chat.first_name != "":
             text_message += f"{user_chat.first_name} "
-        if user_chat.last_name != "":
+        if user_chat.last_name:
             text_message += f"{user_chat.last_name} "
 
         text_message += f"(@{user_chat.username})"
@@ -372,10 +372,11 @@ def create_text_to_participants(color, participants: List[Participant], context:
 
 
 def send_other_participants(main_user_id, color, users_group, send_user_id, context: CallbackContext):
-    text_message = create_text_to_participants(color, users_group, context)
+    text_message = create_text_to_participants(
+        main_user_id, color, users_group, context)
 
     message = context.bot.send_message(chat_id=send_user_id, text=text_message,
-                                       reply_markup=create_yes_no_keyboard(main_user_id))
+                                       reply_markup=create_yes_no_keyboard(main_user_id), parse_mode="HTML")
 
     group = find_group_by_main_user(groups_washing, main_user_id)
 
