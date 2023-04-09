@@ -1,9 +1,9 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove
-from telegram.ext import CallbackContext
+from telegram.ext import CallbackContext, Job
 from typing import List
 
 from storage import load_data, save_data
-from data import users_laundry, groups_by_main_user, groups_washing, Participant
+from data import users_laundry, groups_by_main_user, groups_washing, Participant, Group
 
 
 def start(update: Update, context: CallbackContext):
@@ -231,9 +231,19 @@ def color_selected(update: Update, context: CallbackContext):
         "notification_msg": "hemlo this is notification_msg"
     })
 
+    last_group = groups_washing[groups_washing.count-1]
+
     for user_id in laundry_group:
         send_other_participants(main_user_id,
                                 selected_color, participants, user_id, context=context)
+
+     # Set the timeout (in seconds) to 20 hours
+    timeout = 20 * 60 * 60
+
+    # Add the close_group job to the queue
+    job = Job(callback=close_group, context=last_group,
+              interval=timeout, repeat=False)
+    context.job_queue.put(job)
 
 
 def match_laundry(update: Update, context: CallbackContext):
@@ -283,6 +293,33 @@ def match_laundry(update: Update, context: CallbackContext):
             "No matches found for your laundry. Add more items with /addlaundry or wait for others to join.")
 
 
+def all_users_answered(participants):
+    for participant in participants:
+        if participant["ready"] is None:
+            return False
+    return True
+
+
+def clear_group(group: Group):
+    users_laundry = load_data()
+
+    color = group["color"]
+    for participant in group["participants"]:
+        if participant["ready"]:
+            users_laundry[participant["user_id"]][color] = 0
+
+    save_data(users_laundry)
+
+
+def close_group(context: CallbackContext):
+    group = context.job.context
+    print(f"Closing group {group}")
+    clear_group(group)
+    
+    if group in groups_washing:
+        groups_washing.remove(group)
+
+
 def handle_yes_no_button(update: Update, context: CallbackContext):
     query = update.callback_query
     user_id = query.from_user.id
@@ -303,6 +340,7 @@ def handle_yes_no_button(update: Update, context: CallbackContext):
     text_message = create_text_to_participants(
         selected_user_id, group["color"], group["participants"], context)
 
+    # Update the message in each chat
     for sent_message in group["sent_messages"]:
         chat_id = sent_message["chat_id"]
         message_id = sent_message["message_id"]
@@ -311,9 +349,13 @@ def handle_yes_no_button(update: Update, context: CallbackContext):
         reply_markup = create_yes_no_keyboard(
             selected_user_id)if participant["ready"] == None else None
 
-        # Update the message in each chat
         context.bot.edit_message_text(chat_id=chat_id, message_id=message_id,
                                       text=text_message, reply_markup=reply_markup, parse_mode="HTML")
+
+    if all_users_answered(group["participants"]):
+        # Remove the group from the list
+        clear_group(group)
+        groups_washing.remove(group)
 
     query.answer()
 
@@ -333,8 +375,6 @@ def find_group_by_main_user(groups, main_user_to_find):
         if group["main_user"] == main_user_to_find:
             return group
     return None
-
-# TODO: change it for DICT!
 
 
 def find_user_by_id(list, user_to_find):
