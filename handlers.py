@@ -3,7 +3,7 @@ from telegram.ext import CallbackContext, Job
 from typing import List
 
 from storage import load_data, save_data
-from data import users_laundry, groups_by_main_user, groups_washing, Participant, Group
+from data import users_laundry, groups_by_main_user, groups_washing, user_states, Participant, Group
 
 
 def start(update: Update, context: CallbackContext):
@@ -220,30 +220,55 @@ def color_selected(update: Update, context: CallbackContext):
     query.answer()
     query.edit_message_text(f"Selected color: {selected_color}")
 
-    laundry_group = groups_by_main_user[main_user_id][selected_color]
+    # Store the user's state
+    user_states[main_user_id] = {"color": selected_color}
+
+    # Ask for a message for others
+    query.message.reply_text(
+        "Please enter a message for others participants.\nSay about time, place, and who brings washing powder.")
+    query.answer()
+
+
+def handle_user_message(update: Update, context: CallbackContext):
+    user_id = str(update.message.from_user.id)
+    # Check if the user is in the user_states dictionary
+    if user_id not in user_states:
+        return
+
+    state = user_states[user_id]
+    color = state["color"]
+    user_message = update.message.text
+
+    # Include the user_message in the mailing list for the washing group
+
+    # Remove the user from user_states
+    del user_states[user_id]
+
+    laundry_group = groups_by_main_user[user_id][color]
 
     participants = create_participants(laundry_group)
     groups_washing.append({
-        "main_user": main_user_id,
+        "main_user": user_id,
         "participants": participants,
         "sent_messages": [],
-        "color": selected_color,
-        "notification_msg": "hemlo this is notification_msg"
+        "color": color,
+        "notification_msg": user_message
     })
 
-    last_group = groups_washing[groups_washing.count-1]
+    last_group = groups_washing[len(groups_washing)-1]
 
     for user_id in laundry_group:
-        send_other_participants(main_user_id,
-                                selected_color, participants, user_id, context=context)
+        send_other_participants(
+            user_id, color, participants, user_id, additional_text=user_message, context=context)
 
-     # Set the timeout (in seconds) to 20 hours
+    # Set the timeout (in seconds) to 20 hours
     timeout = 20 * 60 * 60
 
     # Add the close_group job to the queue
-    job = Job(callback=close_group, context=last_group,
-              interval=timeout, repeat=False)
-    context.job_queue.put(job)
+    context.job_queue.run_once(close_group, timeout, context=last_group)
+    # job = Job(callback=close_group, context=last_group,
+    #           interval=timeout, repeat=False)
+    # context.job_queue.put(job)
 
 
 def match_laundry(update: Update, context: CallbackContext):
@@ -315,7 +340,7 @@ def close_group(context: CallbackContext):
     group = context.job.context
     print(f"Closing group {group}")
     clear_group(group)
-    
+
     if group in groups_washing:
         groups_washing.remove(group)
 
@@ -338,7 +363,7 @@ def handle_yes_no_button(update: Update, context: CallbackContext):
             f"there is {user_id} ({specific_participant}) goes for undefined")
     # Update the message text for other users
     text_message = create_text_to_participants(
-        selected_user_id, group["color"], group["participants"], context)
+        selected_user_id, group["color"], group["participants"], group["notification_msg"], context)
 
     # Update the message in each chat
     for sent_message in group["sent_messages"]:
@@ -384,12 +409,12 @@ def find_user_by_id(list, user_to_find):
     return None
 
 
-def create_text_to_participants(main_user_id, color, participants: List[Participant], context: CallbackContext):
+def create_text_to_participants(main_user_id, color, participants: List[Participant], additional_text, context: CallbackContext):
     emoji_check = "\U00002705"
     emoji_cross = "\U0000274C"
     emoji_thinks = "\U0001F4AD"
 
-    text_message = f"{get_user_name(main_user_id, context=context)} want to wash <u>'{color}'</u> with you and:\n"
+    text_message = f"{get_user_name(main_user_id, context=context)} want to wash <u>'{color}'</u> with you and says:\n\"{additional_text}\""
 
     for participant in participants:
         user_chat = context.bot.get_chat(participant["user_id"])
@@ -411,9 +436,9 @@ def create_text_to_participants(main_user_id, color, participants: List[Particip
     return text_message
 
 
-def send_other_participants(main_user_id, color, users_group, send_user_id, context: CallbackContext):
+def send_other_participants(main_user_id, color, users_group, send_user_id, additional_text, context: CallbackContext):
     text_message = create_text_to_participants(
-        main_user_id, color, users_group, context)
+        main_user_id, color, users_group, additional_text, context)
 
     message = context.bot.send_message(chat_id=send_user_id, text=text_message,
                                        reply_markup=create_yes_no_keyboard(main_user_id), parse_mode="HTML")

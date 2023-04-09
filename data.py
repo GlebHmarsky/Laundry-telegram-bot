@@ -45,3 +45,5 @@ groups_washing: ParticipantGroups = []
 users_laundry = {}
 
 groups_by_main_user = {}
+
+user_states = {}
