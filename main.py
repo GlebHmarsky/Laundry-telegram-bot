@@ -4,10 +4,9 @@
 import logging
 from telegram.ext import Updater, CommandHandler, Filters, MessageHandler, CallbackQueryHandler
 from handlers import handle_user_message, edit_laundry, start, handle_yes_no_button, show_laundry, add_laundry, match_laundry, button_handler, color_selected
+from secret_token import TOKEN
 
 logging.basicConfig(level=logging.INFO)
-TOKEN = "6135601546:AAECHTEz5rso2liRcocwAot0rXClNVs6xKk"
-
 
 updater = Updater(TOKEN, use_context=True)
 

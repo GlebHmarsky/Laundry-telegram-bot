@@ -230,25 +230,25 @@ def color_selected(update: Update, context: CallbackContext):
 
 
 def handle_user_message(update: Update, context: CallbackContext):
-    user_id = str(update.message.from_user.id)
+    main_user_id = str(update.message.from_user.id)
     # Check if the user is in the user_states dictionary
-    if user_id not in user_states:
+    if main_user_id not in user_states:
         return
 
-    state = user_states[user_id]
+    state = user_states[main_user_id]
     color = state["color"]
     user_message = update.message.text
 
     # Include the user_message in the mailing list for the washing group
 
     # Remove the user from user_states
-    del user_states[user_id]
+    del user_states[main_user_id]
 
-    laundry_group = groups_by_main_user[user_id][color]
+    laundry_group = groups_by_main_user[main_user_id][color]
 
     participants = create_participants(laundry_group)
     groups_washing.append({
-        "main_user": user_id,
+        "main_user": main_user_id,
         "participants": participants,
         "sent_messages": [],
         "color": color,
@@ -259,7 +259,7 @@ def handle_user_message(update: Update, context: CallbackContext):
 
     for user_id in laundry_group:
         send_other_participants(
-            user_id, color, participants, user_id, additional_text=user_message, context=context)
+            main_user_id, color, participants, user_id, additional_text=user_message, context=context)
 
     # Set the timeout (in seconds) to 20 hours
     timeout = 20 * 60 * 60
